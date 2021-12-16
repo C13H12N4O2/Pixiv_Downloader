@@ -1,6 +1,7 @@
+from multiprocessing.pool import ThreadPool
 from Libraries.Pixiv_Crawler import Pixiv
 from Widgets.Labels.UserIconLabel import UserIconLabel
-from PyQt6.QtCore import Qt, QThread
+from PyQt6.QtCore import Qt, QRunnable, QThreadPool
 from PyQt6.QtWidgets import QPushButton, QLineEdit, QHBoxLayout, QVBoxLayout, QWidget
 
 
@@ -32,7 +33,11 @@ class Main(QWidget):
       return
     
     self.changeIconImg(uid)
-    self.download(uid)
+    
+    pool = QThreadPool.globalInstance()
+    dl = Download(uid, self.pixiv)
+    pool.start(dl)
+    
     
   def changeIconImg(self, uid):
     res = self.pixiv.user_detail(uid, is_pc=True)
@@ -45,38 +50,6 @@ class Main(QWidget):
     self.userIconLabel.img = img
     self.userIconLabel.isDefault = False
     self.userIconLabel.setLabel()
-    
-      
-  def get_data(self, illust_detail):
-    data = {
-      'url': illust_detail['url_big'],
-      'title': illust_detail['title'],
-      'author': illust_detail['author_details']['user_name'],
-      'bookmark': illust_detail['bookmark_user_total'],
-      'description': '\n              '.join(str(illust_detail['meta']['twitter_card']['description']).split('\r\n'))
-    }
-    return data
-    
-    
-  def getIllustsData(self, illust_ids):
-    return [self.pixiv.illust_detail(illust_id, is_pc=True)['body']['illust_details'] for illust_id in illust_ids]
-    
-    
-  def downloadIllusts(self, illust_detail):
-      illust_data = self.get_data(illust_detail)
-      
-      self.pixiv.download(illust_data['url'])
-    
-    
-  def download(self, uid):
-    res = self.pixiv.user_illust(uid, is_pc=True)
-    illust_ids = res['body']['illusts']
-    illust_details = [self.pixiv.illust_detail(illust_id, is_pc=True)['body']['illust_details'] for illust_id in illust_ids]
-
-    for illust_detail in illust_details:
-      illust_data = self.get_data(illust_detail)
-
-      self.pixiv.download(illust_data['url'])
     
   
   def isEmpty(self, str):
@@ -105,3 +78,31 @@ class Main(QWidget):
     self.functionHLayout.addWidget(self.searchBar)
     self.functionHLayout.addWidget(self.downloadButton)
     self.functionHLayout.addStretch(5)
+
+
+class Download(QRunnable):
+  def __init__(self, uid, pixiv, *args, **kwargs):
+    super(Download, self).__init__(*args, **kwargs)
+    self.uid = uid
+    self.pixiv = pixiv
+    
+    
+  def illustDownload(self, illust_id):
+    delay = None
+    try:
+      metadata = self.pixiv.ugoira_metadata(illust_id, is_pc=True)
+      delay = [data['delay']/1000 for data in metadata['body']['frames']]
+      url = metadata['body']['originalSrc']
+    except:
+      illust_detail = self.pixiv.illust_detail(illust_id, is_pc=True)['body']['illust_details']
+      url = illust_detail['url_big']
+    self.pixiv.download(url, delay)
+
+
+  def run(self):
+    res = self.pixiv.user_illust(self.uid, is_pc=True)
+    illust_ids = res['body']['illusts']
+    
+    results = ThreadPool(10).imap_unordered(self.illustDownload, (illust_id for illust_id in illust_ids))
+    for r in results:
+      r
