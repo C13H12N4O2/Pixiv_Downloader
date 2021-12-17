@@ -3,7 +3,7 @@ from Model.Download import Download
 from Widgets.Labels.UserIconLabel import UserIconLabel
 from Widgets.ProgressBar.ProgressBar import ProgressBar
 from PyQt6.QtCore import Qt, QThreadPool
-from PyQt6.QtWidgets import QPushButton, QLineEdit, QHBoxLayout, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QPushButton, QLineEdit, QLabel, QHBoxLayout, QVBoxLayout, QWidget
 
 
 class Main(QWidget):
