@@ -1,4 +1,5 @@
 import os
+import sys
 import shutil
 import hashlib
 import cloudscraper
@@ -14,15 +15,26 @@ class Pixiv():
     access_token = None
     login_user_id = 0
     refresh_token = None
+    
+    
+    def download_path(self, relative_path):
+        try:
+            base_path = sys._MEIPASS
+        except:
+            base_path = os.path.abspath('.')
+            
+        return os.path.join(base_path, relative_path)
+    
 
     def __init__(self, **requests_kwargs):
+        self.default_path = self.download_path('Download Images')
         self.s = cloudscraper.create_scraper()
         self.requests_kwargs = requests_kwargs
         self.app_host = 'https://app-api.pixiv.net'
         self.web_host = 'https://pixiv.net'
         
         self.headers = {
-            #'User-Agent': 'PixivIOSApp/7.9.4',
+            'User-Agent': 'PixivIOSApp/7.9.4',
             'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.121 Safari/537.36',
             'referer': 'www.pixiv.net'
         }
@@ -369,15 +381,16 @@ class Pixiv():
         }
         res = self.parse_url(url, headers=headers, stream=True)
         file_name = os.path.basename(url)
-        with open(file_name, 'wb') as handle:
+        path = os.path.join(self.default_path, file_name)
+        with open(path, 'wb') as handle:
             shutil.copyfileobj(res.raw, handle)
         del res
         if delay:
-            with ZipFile(file_name, 'r') as zip:
-                new_path = file_name.split('.')[0]
+            with ZipFile(path, 'r') as zip:
+                new_path = path.split('.')[0]
                 zip.extractall(new_path)
                 list = zip.namelist()
-                shutil.move(file_name, new_path)
+                shutil.move(path, new_path)
             with imageio.get_writer(f'{new_path}.gif', mode='I', format='GIF-PIL', duration=delay) as writer:
                 for file in list:
                     img = imageio.imread(os.path.join(new_path, file))

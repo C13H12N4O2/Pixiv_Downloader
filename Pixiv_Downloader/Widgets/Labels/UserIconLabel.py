@@ -4,9 +4,10 @@ from PyQt6.QtGui import QPixmap, QPainter, QPainterPath, QPen, QColor
 
 
 class UserIconLabel(QLabel):
-  def __init__(self, antialiasing=True, *args, **kwargs):
+  def __init__(self, basePath, antialiasing=True, *args, **kwargs):
     super(UserIconLabel, self).__init__(*args, **kwargs)
-    self.img = "./Resources/DefaultUserIcon.png"
+    
+    self.img = f'{basePath}/Resources/DefaultUserIcon.png'
     self.antialiasing = antialiasing
     self.isDefault = True
     
@@ -21,7 +22,7 @@ class UserIconLabel(QLabel):
     target = QPixmap(self.size())
     target.fill(QColor("transparent"))
     
-    p = self.setImage()
+    self.setImage()
     
     painter = QPainter(target)
     painter.setPen(QPen(Qt.GlobalColor.black, 3))
@@ -35,18 +36,29 @@ class UserIconLabel(QLabel):
         
     painter.drawPath(path)
     painter.setClipPath(path)
-    painter.drawPixmap(0, 0, p)
+    painter.drawPixmap(0, 0, self.p)
     painter.end()
     self.setPixmap(target)
         
         
   def setImage(self):
     if self.isDefault:
-      return QPixmap(self.img).scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)
-    p = QPixmap()
-    p.loadFromData(self.img)
-    return p
+      self.p = QPixmap(self.img).scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)
+    else:
+      self.p = QPixmap()
+      self.p.loadFromData(self.img)
     
     
-  def isSame(img):
+  def isSame(self, img):
     return self.img == img
+    
+    
+  def changeUserIcon(self, url):
+    img = self.Util.getImageData(url)
+    
+    if self.isSame(img):
+      return
+    
+    self.img = img
+    self.isDefault = False
+    self.setLabel()

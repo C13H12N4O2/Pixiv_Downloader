@@ -1,15 +1,17 @@
 from Libraries.Pixiv_Crawler import Pixiv
 from Model.Download import Download
 from Widgets.Labels.UserIconLabel import UserIconLabel
+from Widgets.Labels.UserNameLabel import UserNameLabel
 from Widgets.ProgressBar.ProgressBar import ProgressBar
 from PyQt6.QtCore import Qt, QThreadPool
 from PyQt6.QtWidgets import QPushButton, QLineEdit, QLabel, QHBoxLayout, QVBoxLayout, QWidget
 
 
 class Main(QWidget):
-  def __init__(self, *args, **kwargs):
+  def __init__(self, basePath, *args, **kwargs):
     super(Main, self).__init__(*args, **kwargs)
     self.pixiv = Pixiv()
+    self.basePath = basePath
     self.initUI()
     
     
@@ -35,7 +37,7 @@ class Main(QWidget):
     
   def downloadClick(self):
     uid = self.searchBar.text()
-    if self.isEmpty(uid):
+    if uid == "":
       return
     
     if self.progressBar.value() > 0:
@@ -43,18 +45,24 @@ class Main(QWidget):
     
     self.changeUserInfo(uid)
     
+    illust_ids = self.pixiv.user_illust(uid, is_pc=True)['body']['illusts']
+    self.progressBar.setMaximum(len(illust_ids) - 1)
+    
     pool = QThreadPool.globalInstance()
-    dl = Download(uid, self.pixiv, self.progressBar.increase, self.progressBar.setMaximum)
-    pool.start(dl)
-    
-    
+    pool.setMaxThreadCount(20)
+    for illust_id in illust_ids:
+      dl = Download(illust_id)
+      dl.signals.finished.connect(self.progressBar.increase)
+      pool.start(dl)
+      
+      
   def changeUserInfo(self, uid):
-    res = self.pixiv.user_detail(uid, is_pc=True)
-    name = res['body']['name']
-    url = res['body']['imageBig']
+    res = self.pixiv.user_detail(uid, is_pc=True)['body']
+    name = res['name']
+    url = res['imageBig']
     
     img = self.pixiv.img_data(url)
-    if self.isSame(img):
+    if self.userIconLabel.img == img:
       return
     
     self.userNameLabel.setText(name)
@@ -63,16 +71,8 @@ class Main(QWidget):
     self.userIconLabel.setLabel()
     
   
-  def isEmpty(self, str):
-    return str == ""
-    
-    
-  def isSame(self, img):
-    return self.userIconLabel.img == img
-    
-  
   def headerHLayout(self):
-    self.userIconLabel = UserIconLabel()
+    self.userIconLabel = UserIconLabel(self.basePath)
     
     self.headerHLayout = QHBoxLayout()
     self.headerHLayout.addStretch(10)
@@ -81,8 +81,7 @@ class Main(QWidget):
     
     
   def infoVLayout(self):
-    self.userNameLabel = QLabel("User Name")
-    self.userNameLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    self.userNameLabel = UserNameLabel()
     
     self.infoVLayout = QVBoxLayout()
     self.infoVLayout.addWidget(self.userNameLabel)
