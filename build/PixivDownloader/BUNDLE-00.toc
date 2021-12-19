@@ -1,3 +1,0 @@
-([('PixivDownloader',
-   '/Users/c13h12n4o2/Documents/github/Pixiv_Downloader/dist/PixivDownloader',
-   'EXECUTABLE')],)
